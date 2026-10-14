@@ -1,4 +1,8 @@
-const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL ??
+  (import.meta.env.DEV
+    ? "http://localhost:4000"
+    : "https://bike-auction-platform-0zhd.onrender.com");
 const TOKEN_KEY = "revbid_token";
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
@@ -81,7 +85,7 @@ async function request<T>(
 
   let res: Response;
   try {
-    res = await fetch(`${BASE}${path}`, {
+    res = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,

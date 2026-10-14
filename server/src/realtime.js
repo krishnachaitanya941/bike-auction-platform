@@ -1,6 +1,7 @@
 const { Server } = require('socket.io');
 const config = require('./config');
 const logger = require('./logger');
+const { wsConnections } = require('./metrics');
 
 let io = null;
 
@@ -10,8 +11,11 @@ function initRealtime(httpServer) {
     serveClient: false,
   });
 
+ 
   io.on('connection', (socket) => {
     logger.debug({ socketId: socket.id }, 'socket connected');
+    wsConnections.inc();
+    socket.on('disconnect', () => wsConnections.dec());
 
     socket.on('lobby:join', () => socket.join('lobby'));
 

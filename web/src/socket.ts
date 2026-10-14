@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
-import type { AuctionStatus, BidRow } from "./api";
-
-const URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+import { API_BASE_URL, type AuctionStatus, type BidRow } from "./api";
 
 let socket: Socket | null = null;
 function getSocket(): Socket {
-  if (!socket) socket = io(URL, { transports: ["websocket", "polling"], reconnectionDelayMax: 5000 });
+  if (!socket) socket = io(API_BASE_URL, { transports: ["websocket", "polling"], reconnectionDelayMax: 5000 });
   return socket;
 }
 

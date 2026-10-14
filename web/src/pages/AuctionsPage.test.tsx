@@ -9,6 +9,7 @@ const apiMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../api", () => ({
+  API_BASE_URL: "http://localhost:4000",
   api: { listAuctions: apiMocks.listAuctions },
 }));
 

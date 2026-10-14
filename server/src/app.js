@@ -35,11 +35,15 @@ app.use(
   })
 );
 
-app.get('/health', async (_req, res) => {
+app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
     res.json({ status: 'ok', db: 'up' });
-  } catch {
+  } catch (err) {
+    logger.error(
+      { requestId: req.id, databaseErrorCode: err.code || 'UNKNOWN' },
+      'database health check failed'
+    );
     res.status(503).json({ status: 'degraded', db: 'down' });
   }
 });
