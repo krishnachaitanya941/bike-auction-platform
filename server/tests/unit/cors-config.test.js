@@ -50,4 +50,31 @@ describe('production CORS configuration', () => {
     expect(result.allowedCredentials).toBe('true');
     expect(result.deniedOrigin).toBeUndefined();
   });
+
+  it('configures Socket.IO with the production origins and credentials', () => {
+    const output = execFileSync(
+      process.execPath,
+      [
+        '-e',
+        [
+          "process.env.NODE_ENV='production';",
+          "process.env.JWT_SECRET='test';",
+          "process.env.DB_HOST='localhost';",
+          "process.env.DB_USER='test';",
+          "process.env.DB_PASSWORD='test';",
+          "process.env.DB_NAME='test';",
+          "const socketIoPath=require.resolve('socket.io');",
+          "require.cache[socketIoPath]={id:socketIoPath,filename:socketIoPath,loaded:true,exports:{Server:class{constructor(_server,options){global.socketOptions=options;} on(){}}}};",
+          "require('./src/realtime').initRealtime({});",
+          "console.log(JSON.stringify(global.socketOptions.cors));",
+        ].join('\n'),
+      ],
+      { encoding: 'utf8', env: process.env }
+    );
+
+    expect(JSON.parse(output.trim())).toEqual({
+      origin: ['https://bike-auction-platform-phi.vercel.app'],
+      credentials: true,
+    });
+  });
 });

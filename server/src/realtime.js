@@ -6,7 +6,7 @@ let io = null;
 
 function initRealtime(httpServer) {
   io = new Server(httpServer, {
-    cors: { origin: config.clientOrigin.split(',').map((s) => s.trim()), credentials: true },
+    cors: { origin: config.clientOrigins, credentials: true },
     serveClient: false,
   });
 
