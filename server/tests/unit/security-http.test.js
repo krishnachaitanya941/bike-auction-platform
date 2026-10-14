@@ -2,6 +2,19 @@ const request = require('supertest');
 const app = require('../../src/app');
 
 describe('database-free HTTP security checks', () => {
+  it('allows the local frontend origin and rejects unconfigured origins', async () => {
+    const local = await request(app)
+      .get('/')
+      .set('Origin', 'http://localhost:8443');
+    const unconfigured = await request(app)
+      .get('/')
+      .set('Origin', 'https://untrusted.example');
+
+    expect(local.headers['access-control-allow-origin']).toBe('http://localhost:8443');
+    expect(local.headers['access-control-allow-credentials']).toBe('true');
+    expect(unconfigured.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
   it('sets Helmet headers and returns errors without stack traces', async () => {
     const response = await request(app).get('/api/auth/me');
 

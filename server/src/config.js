@@ -12,10 +12,15 @@ for (const key of required) {
   }
 }
 
+const clientOrigins = ['https://bike-auction-platform-phi.vercel.app'];
+if (process.env.NODE_ENV !== 'production') {
+  clientOrigins.push('http://localhost:8443', 'http://127.0.0.1:8443');
+}
+
 module.exports = {
   env: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 4000,
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1h',
-  clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:8443',
+  clientOrigins,
 };

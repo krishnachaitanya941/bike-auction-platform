@@ -17,7 +17,7 @@ const { metricsMiddleware, metricsHandler } = require('./metrics');
 
 app.set('trust proxy', 1); // needed behind Render/Vercel proxies for correct client IPs
 app.use(helmet());
-app.use(cors({ origin: config.clientOrigin, credentials: true }));
+app.use(cors({ origin: config.clientOrigins, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
 app.use(requestId);
 app.use(metricsMiddleware);
