@@ -11,7 +11,7 @@ function initRealtime(httpServer) {
     serveClient: false,
   });
 
- 
+
   io.on('connection', (socket) => {
     logger.debug({ socketId: socket.id }, 'socket connected');
     wsConnections.inc();
