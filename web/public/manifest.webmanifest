@@ -1,0 +1,17 @@
+{
+  "name": "RevBid | Motorcycle Auctions",
+  "short_name": "RevBid",
+  "description": "Discover verified motorcycles, follow transparent auctions, and bid with confidence.",
+  "start_url": "/auctions",
+  "display": "standalone",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

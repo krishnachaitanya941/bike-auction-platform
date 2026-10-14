@@ -29,7 +29,7 @@ export function Icon({ name, size = 18 }: { name: string; size?: number }) {
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="logo-mark"><span>R</span></div>
+      <div className="logo-mark"><span><Icon name="bike" size={19} /></span></div>
       {!compact && <div className="text-xl font-bold tracking-tight">Rev<span className="text-accent">Bid</span></div>}
     </div>
   );

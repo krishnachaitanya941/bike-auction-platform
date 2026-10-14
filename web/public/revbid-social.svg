@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0b0f14"/>
+  <circle cx="1000" cy="110" r="260" fill="#ff5a1f" opacity=".12"/>
+  <rect x="86" y="126" width="112" height="112" rx="28" fill="#ff5a1f"/>
+  <g fill="none" stroke="#f3f5f7" stroke-linecap="round" stroke-linejoin="round" stroke-width="9">
+    <circle cx="120" cy="210" r="19" stroke="#0b0f14"/>
+    <circle cx="164" cy="210" r="19" stroke="#0b0f14"/>
+    <path d="m120 210 20-38h18l20 38m-44-25h33m-17-13 10-15h13"/>
+  </g>
+  <text x="230" y="211" fill="#f3f5f7" font-family="Inter, Arial, sans-serif" font-size="82" font-weight="700">Rev<tspan fill="#ff5a1f">Bid</tspan></text>
+  <text x="86" y="366" fill="#f3f5f7" font-family="Inter, Arial, sans-serif" font-size="54" font-weight="700">Motorcycle auctions.</text>
+  <text x="86" y="442" fill="#aab4c0" font-family="Inter, Arial, sans-serif" font-size="34">Verified rides. Transparent bidding. Your next ride awaits.</text>
+  <rect x="86" y="500" width="92" height="8" rx="4" fill="#ff5a1f"/>
+</svg>

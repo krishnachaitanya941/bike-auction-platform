@@ -1,7 +1,15 @@
 {
-  "description": "RevBid is a premium live auction platform for motorcycle enthusiasts, enabling users to bid on used bikes in real-time while ensuring a secure and engaging experience.",
+  "title": "RevBid | Motorcycle Auctions",
+  "description": "Discover verified motorcycles, follow transparent auctions, and bid with confidence on RevBid.",
+  "language": "en",
   "robots": {
-    "index": false
+    "index": true
+  },
+  "icons": {
+    "icon": "/favicon.svg"
+  },
+  "openGraph": {
+    "image": "https://bike-auction-platform-phi.vercel.app/revbid-social.svg"
   },
   "accessibility": {
     "addBypassLinks": false,
