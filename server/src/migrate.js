@@ -39,6 +39,7 @@ const statements = [
     user_id BIGINT NOT NULL,
     amount DECIMAL(12,2) NOT NULL,
     request_id CHAR(36) NOT NULL,
+    response_json JSON NULL,
     created_at TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP(3),
     UNIQUE KEY uq_request (user_id, request_id),
     INDEX idx_auction_amount (auction_id, amount),
@@ -47,14 +48,42 @@ const statements = [
   )`,
 ];
 
-(async () => {
+async function ensureResponseSnapshotColumn() {
+  const [columns] = await pool.query(
+    `SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'bids' AND COLUMN_NAME = 'response_json'`
+  );
+  if (!columns.length) {
+    await pool.query('ALTER TABLE bids ADD COLUMN response_json JSON NULL');
+  }
+}
+
+async function migrate() {
   for (const sql of statements) {
     await pool.query(sql);
   }
+  await ensureResponseSnapshotColumn();
   const [tables] = await pool.query('SHOW TABLES');
   console.log('Tables:', tables.map((t) => Object.values(t)[0]).join(', '));
-  await pool.end();
-})().catch((err) => {
-  console.error('Migration failed:', err.message);
-  process.exit(1);
-});
+}
+
+if (require.main === module) {
+  (async () => {
+    let failed = false;
+    try {
+      await migrate();
+    } catch (err) {
+      console.error('Migration failed:', err.message);
+      failed = true;
+    }
+    try {
+      await pool.end();
+    } catch (err) {
+      console.error('Failed to close database pool:', err.message);
+      failed = true;
+    }
+    if (failed) process.exitCode = 1;
+  })();
+}
+
+module.exports = { statements, migrate, ensureResponseSnapshotColumn };

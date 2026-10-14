@@ -1,7 +1,12 @@
 const { pool } = require('../db');
 const { AppError } = require('../errors');
+const logger = require('../logger');
 
 const ANTI_SNIPE_SECONDS = 30;
+
+function toCents(amount) {
+  return Math.round(Number(amount) * 100);
+}
 
 function shape(row, extra = {}) {
   const price = Number(row.current_price);
@@ -9,7 +14,9 @@ function shape(row, extra = {}) {
   return {
     auctionId: row.id,
     currentPrice: price,
-    minNextBid: row.highest_bidder_id ? price + inc : Number(row.starting_price),
+    minNextBid: row.highest_bidder_id
+      ? (toCents(price) + toCents(inc)) / 100
+      : Number(row.starting_price),
     highestBidderId: row.highest_bidder_id ? Number(row.highest_bidder_id) : null,
     endsAt: row.ends_at,
     status: row.status,
@@ -18,10 +25,12 @@ function shape(row, extra = {}) {
 }
 
 async function placeBid({ auctionId, userId, amount, requestId }) {
-  const bidAmount = Math.round(amount * 100) / 100;
+  const bidAmount = toCents(amount) / 100;
   const conn = await pool.getConnection();
+  let transactionOpen = false;
   try {
     await conn.beginTransaction();
+    transactionOpen = true;
 
     // Lock this auction row. Any other bid on the same auction waits here.
     const [rows] = await conn.query(
@@ -37,11 +46,19 @@ async function placeBid({ auctionId, userId, amount, requestId }) {
 
     // Retry of a bid we already stored: return the current state, do not bid twice.
     const [dup] = await conn.query(
-      'SELECT id FROM bids WHERE user_id = ? AND request_id = ?',
+      'SELECT id, response_json FROM bids WHERE user_id = ? AND request_id = ?',
       [userId, requestId]
     );
     if (dup.length) {
       await conn.commit();
+      transactionOpen = false;
+      const original = dup[0].response_json;
+      if (original) {
+        return {
+          ...(typeof original === 'string' ? JSON.parse(original) : original),
+          duplicate: true,
+        };
+      }
       return shape(a, { duplicate: true, bidId: dup[0].id });
     }
 
@@ -52,9 +69,11 @@ async function placeBid({ auctionId, userId, amount, requestId }) {
       throw new AppError(409, 'ALREADY_HIGHEST_BIDDER', 'You are already the highest bidder.');
     }
 
-    const current = Number(a.current_price);
-    const minNext = a.highest_bidder_id ? current + Number(a.min_increment) : Number(a.starting_price);
-    if (bidAmount < minNext) {
+    const minNextCents = a.highest_bidder_id
+      ? toCents(a.current_price) + toCents(a.min_increment)
+      : toCents(a.starting_price);
+    const minNext = minNextCents / 100;
+    if (toCents(bidAmount) < minNextCents) {
       const err = new AppError(
         422,
         'BID_TOO_LOW',
@@ -72,24 +91,36 @@ async function placeBid({ auctionId, userId, amount, requestId }) {
     await conn.query(
       `UPDATE auctions
        SET current_price = ?, highest_bidder_id = ?, status = 'live', version = version + 1,
-           ends_at = IF(TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), ends_at) < ?,
+           ends_at = IF(ends_at <= DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? SECOND),
                         DATE_ADD(ends_at, INTERVAL ? SECOND), ends_at)
        WHERE id = ?`,
       [bidAmount, userId, ANTI_SNIPE_SECONDS, ANTI_SNIPE_SECONDS, auctionId]
     );
 
     const [after] = await conn.query('SELECT * FROM auctions WHERE id = ?', [auctionId]);
-    await conn.commit();
-
     const extended = new Date(after[0].ends_at).getTime() > new Date(a.ends_at).getTime();
-    return shape(after[0], {
+    const result = shape(after[0], {
       duplicate: false,
       bidId: ins.insertId,
       extended,
       previousHighestBidderId: a.highest_bidder_id ? Number(a.highest_bidder_id) : null,
     });
+    await conn.query('UPDATE bids SET response_json = ? WHERE id = ?', [
+      JSON.stringify(result),
+      ins.insertId,
+    ]);
+    await conn.commit();
+    transactionOpen = false;
+
+    return result;
   } catch (err) {
-    await conn.rollback();
+    if (transactionOpen) {
+      try {
+        await conn.rollback();
+      } catch (rollbackError) {
+        logger.error({ err, rollbackError, auctionId }, 'bid transaction rollback failed');
+      }
+    }
     if (err.code === 'ER_DUP_ENTRY') {
       throw new AppError(409, 'DUPLICATE_REQUEST', 'This bid was already submitted.');
     }

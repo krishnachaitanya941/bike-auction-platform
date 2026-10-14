@@ -1,9 +1,17 @@
-require('dotenv').config();
+require('./config');
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
 
 const useSsl = process.env.DB_SSL !== 'false';
+
+if (
+  process.env.NODE_ENV === 'test' &&
+  (!['localhost', '127.0.0.1', '::1'].includes(process.env.DB_HOST?.toLowerCase()) ||
+    process.env.DB_NAME !== 'bike_auction_test')
+) {
+  throw new Error('Test mode requires a local MySQL database named bike_auction_test.');
+}
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,

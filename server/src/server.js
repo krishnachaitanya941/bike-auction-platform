@@ -12,9 +12,15 @@ const stopScheduler = startScheduler();
 async function shutdown(signal) {
   logger.info(`${signal} received, shutting down`);
   stopScheduler();
-  server.close(async () => {
-    await pool.end();
-    process.exit(0);
+  server.close((serverError) => {
+    if (serverError) {
+      logger.error({ err: serverError }, 'server shutdown failed');
+      process.exitCode = 1;
+    }
+    pool.end().catch((err) => {
+      logger.error({ err }, 'database pool shutdown failed');
+      process.exitCode = 1;
+    });
   });
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));

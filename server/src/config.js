@@ -1,4 +1,8 @@
-require('dotenv').config();
+const path = require('path');
+
+require('dotenv').config({
+  path: process.env.NODE_ENV === 'test' ? path.join(__dirname, '..', '.env.test') : undefined,
+});
 
 const required = ['JWT_SECRET', 'DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
 for (const key of required) {

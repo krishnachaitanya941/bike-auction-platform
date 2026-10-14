@@ -8,13 +8,14 @@ function requireAuth(req, _res, next) {
   if (scheme !== 'Bearer' || !token) {
     throw new AppError(401, 'UNAUTHENTICATED', 'Please sign in to continue.');
   }
+  let payload;
   try {
-    const payload = jwt.verify(token, config.jwtSecret);
-    req.user = { id: Number(payload.sub), role: payload.role };
-    next();
+    payload = jwt.verify(token, config.jwtSecret);
   } catch {
     throw new AppError(401, 'INVALID_TOKEN', 'Your session has expired. Please sign in again.');
   }
+  req.user = { id: Number(payload.sub), role: payload.role };
+  next();
 }
 
 function requireRole(role) {

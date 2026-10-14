@@ -79,9 +79,10 @@ export function Field({
           autoComplete={autoComplete}
           disabled={disabled}
           inputMode={inputMode}
+          aria-invalid={error ? true : undefined}
         />
       </div>
-      {error && <span className="error-text">{error}</span>}
+      {error && <span className="error-text" role="alert">{error}</span>}
     </label>
   );
 }

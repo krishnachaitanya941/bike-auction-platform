@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { api, getToken, setToken, type User } from "./api";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { api, ApiError, getToken, setToken, type User } from "./api";
 
 interface AuthState {
   user: User | null;
@@ -14,36 +14,76 @@ const Ctx = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(!!getToken());
+  const authVersion = useRef(0);
 
   useEffect(() => {
-    if (!getToken()) return;
+    const version = ++authVersion.current;
+    if (!getToken()) {
+      setLoading(false);
+      return;
+    }
     api.me()
-      .then((r) => setUser(r.user))
-      .catch(() => setToken(null))
-      .finally(() => setLoading(false));
+      .then((r) => {
+        if (authVersion.current === version) setUser(r.user);
+      })
+      .catch((error: unknown) => {
+        if (
+          authVersion.current === version &&
+          error instanceof ApiError &&
+          error.status === 401
+        ) {
+          setToken(null);
+          setUser(null);
+        }
+      })
+      .finally(() => {
+        if (authVersion.current === version) setLoading(false);
+      });
+    return () => {
+      if (authVersion.current === version) authVersion.current += 1;
+    };
   }, []);
 
   useEffect(() => {
-    const onLogout = () => setUser(null);
+    const onLogout = () => {
+      authVersion.current += 1;
+      setUser(null);
+      setLoading(false);
+    };
     window.addEventListener("revbid:logout", onLogout);
     return () => window.removeEventListener("revbid:logout", onLogout);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const r = await api.login(email, password);
-    setToken(r.token);
-    setUser(r.user);
-    return r.user;
+    const version = ++authVersion.current;
+    try {
+      const r = await api.login(email, password);
+      if (authVersion.current === version) {
+        setToken(r.token);
+        setUser(r.user);
+      }
+      return r.user;
+    } finally {
+      if (authVersion.current === version) setLoading(false);
+    }
   }, []);
 
   const register = useCallback(async (name: string, email: string, password: string) => {
-    const r = await api.register(name, email, password);
-    setToken(r.token);
-    setUser(r.user);
-    return r.user;
+    const version = ++authVersion.current;
+    try {
+      const r = await api.register(name, email, password);
+      if (authVersion.current === version) {
+        setToken(r.token);
+        setUser(r.user);
+      }
+      return r.user;
+    } finally {
+      if (authVersion.current === version) setLoading(false);
+    }
   }, []);
 
   const logout = useCallback(() => {
+    authVersion.current += 1;
     setToken(null);
     setUser(null);
   }, []);

@@ -65,7 +65,7 @@ async function request<T>(
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     const e = data?.error;
-    if (res.status === 401 && token && (e?.code === "INVALID_TOKEN" || e?.code === "UNAUTHENTICATED")) {
+    if (res.status === 401 && token) {
       setToken(null);
       window.dispatchEvent(new Event("revbid:logout"));
     }

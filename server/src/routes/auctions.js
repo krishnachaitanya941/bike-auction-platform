@@ -9,6 +9,10 @@ const { parse, parseId } = require('../validate');
 
 const router = express.Router();
 
+function toCents(amount) {
+  return Math.round(Number(amount) * 100);
+}
+
 const STATUS_MAP = { live: 'live', upcoming: 'scheduled', ended: 'ended' };
 const SORTS = {
   ending_soon: 'a.ends_at ASC',
@@ -24,8 +28,8 @@ const listQuery = z.object({
 const createSchema = z
   .object({
     bikeId: z.coerce.number().int().positive(),
-    startingPrice: z.coerce.number().positive().max(100000000),
-    minIncrement: z.coerce.number().positive().max(10000000).default(500),
+    startingPrice: z.coerce.number().positive().max(100000000).refine((n) => toCents(n) / 100 === n),
+    minIncrement: z.coerce.number().positive().max(10000000).refine((n) => toCents(n) / 100 === n).default(500),
     startsAt: z.coerce.date(),
     endsAt: z.coerce.date(),
   })
@@ -35,13 +39,13 @@ const createSchema = z
   });
 
 const bidSchema = z.object({
-  amount: z.coerce.number().positive().max(1000000000),
+  amount: z.coerce.number().positive().max(1000000000).refine((n) => toCents(n) / 100 === n),
   requestId: z.string().uuid(),
 });
 
 const bidLimiter = rateLimit({
   windowMs: 60 * 1000,
-  limit: 30,
+  limit: Number(process.env.BID_RATE_LIMIT) || 30,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => String(req.user.id),
@@ -70,7 +74,9 @@ function auctionDto(r) {
     startingPrice: Number(r.starting_price),
     minIncrement: Number(r.min_increment),
     currentPrice: price,
-    minNextBid: r.highest_bidder_id ? price + Number(r.min_increment) : Number(r.starting_price),
+    minNextBid: r.highest_bidder_id
+      ? (toCents(price) + toCents(r.min_increment)) / 100
+      : Number(r.starting_price),
     highestBidderId: r.highest_bidder_id ? Number(r.highest_bidder_id) : null,
     bidCount: Number(r.bid_count ?? 0),
     startsAt: r.starts_at,

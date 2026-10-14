@@ -23,7 +23,7 @@ export default function LoginPage() {
 
   const fieldErr = (f: string): string | undefined =>
     error?.status === 422 && Array.isArray(error.details)
-      ? error.details.find((d: any) => d.field === f)?.message
+      ? error.details.find((d: { field?: string }) => d.field === f)?.message
       : undefined;
   const generalErr = error && error.status !== 422 ? error.message : undefined;
 
@@ -84,10 +84,11 @@ export default function LoginPage() {
               value={password}
               onChange={setPassword}
               autoComplete={mode === "signin" ? "current-password" : "new-password"}
-              error={fieldErr("password") ?? generalErr}
+              error={fieldErr("password")}
             />
           </div>
 
+          {generalErr && <div role="alert" className="error-text">{generalErr}</div>}
           <Button className="w-full" type="submit" disabled={busy}>
             {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
             {!busy && <Icon name="arrow" size={18} />}

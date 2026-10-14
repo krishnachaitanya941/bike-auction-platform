@@ -44,7 +44,12 @@ function BikeCard({ a, now }: { a: Auction; now: number }) {
       role="link"
       tabIndex={0}
       onClick={open}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && open()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          open();
+        }
+      }}
     >
       <div className="bike-image">
         {a.bike.imageUrl && <img src={a.bike.imageUrl} alt={title} />}
@@ -93,7 +98,10 @@ export default function AuctionsPage() {
   useEffect(() => {
     load();
     const t = setInterval(() => load(true), 10000);
-    return () => clearInterval(t);
+    return () => {
+      clearInterval(t);
+      requestId.current += 1;
+    };
   }, [load]);
 
   const now = useServerClock(data?.serverTime);
@@ -123,8 +131,7 @@ export default function AuctionsPage() {
           </div>
           {status !== "ended" && (
             <div className="sort-row">
-              <span>Sort by</span>
-              <SelectField value={sort} onChange={setSort}>
+              <SelectField label="Sort by" value={sort} onChange={setSort}>
                 <option value="ending_soon">Ending soon</option>
                 <option value="price_asc">Price low to high</option>
                 <option value="price_desc">Price high to low</option>
@@ -134,7 +141,7 @@ export default function AuctionsPage() {
         </div>
 
         {error && (
-          <div style={{ padding: "24px 0", color: "#fb7777" }}>
+          <div role="alert" style={{ padding: "24px 0", color: "#fb7777" }}>
             {error} <button className="btn btn-secondary" onClick={() => load()}>Try again</button>
           </div>
         )}

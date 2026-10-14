@@ -4,11 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-  "dev": "nodemon src/server.js",
-  "start": "node src/server.js",
-  "migrate": "node src/migrate.js",
-  "seed": "node src/seed.js",
-  "seed:auctions": "node src/seedAuctions.js"
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "migrate": "node src/migrate.js",
+    "seed": "node src/seed.js",
+    "seed:auctions": "node src/seedAuctions.js",
+    "test": "vitest run --maxWorkers=1 --fileParallelism=false",
+    "test:watch": "vitest --maxWorkers=1 --fileParallelism=false",
+    "test:unit": "vitest run --config vitest.unit.config.js"
   },
   "keywords": [],
   "author": "",
@@ -29,6 +32,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14",
-    "pino-pretty": "^13.2.0"
+    "pino-pretty": "^13.2.0",
+    "supertest": "^7.3.1",
+    "vitest": "^5.0.4"
   }
 }
