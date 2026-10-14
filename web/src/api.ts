@@ -56,6 +56,19 @@ export interface BidResult {
   extended?: boolean;
   previousHighestBidderId?: number | null;
 }
+export interface AdminStats {
+  liveAuctions: number; scheduledAuctions: number; bidsToday: number;
+  totalBids: number; users: number; soldCount: number; salesValue: number;
+}
+export interface AdminAuction {
+  id: number; status: AuctionStatus;
+  bike: { make: string; model: string; imageUrl: string | null };
+  startingPrice: number; currentPrice: number; highestBidderId: number | null;
+  bidCount: number; startsAt: string; endsAt: string;
+}
+export interface BikeOption { id: number; make: string; model: string; year: number; mileageKm: number; imageUrl: string | null }
+export interface NewBike { make: string; model: string; year: number; mileageKm: number; conditionNotes?: string; imageUrl?: string }
+export interface NewAuction { bikeId: number; startingPrice: number; minIncrement: number; startsAt: string; endsAt: string }
 
 async function request<T>(
   path: string,
@@ -100,4 +113,10 @@ export const api = {
     getAuction: (id: number) => request<AuctionDetail>(`/api/auctions/${id}`),
   placeBid: (id: number, amount: number, requestId: string) =>
     request<BidResult>(`/api/auctions/${id}/bids`, { method: "POST", body: { amount, requestId } }),
+    adminStats: () => request<AdminStats>("/api/admin/stats"),
+  adminAuctions: () => request<{ auctions: AdminAuction[] }>("/api/admin/auctions"),
+  listBikes: () => request<{ bikes: BikeOption[] }>("/api/bikes"),
+  createBike: (b: NewBike) => request<{ id: number }>("/api/bikes", { method: "POST", body: b }),
+  createAuction: (a: NewAuction) => request<{ id: number }>("/api/auctions", { method: "POST", body: a }),
+  cancelAuction: (id: number) => request<{ id: number; status: string }>(`/api/auctions/${id}/cancel`, { method: "PATCH" }),
 };

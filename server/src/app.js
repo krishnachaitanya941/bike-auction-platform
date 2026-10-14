@@ -11,6 +11,7 @@ const { notFound, errorHandler } = require('./middleware/errorHandler');
 const bikeRoutes = require('./routes/bikes');
 const auctionRoutes = require('./routes/auctions');
 const app = express();
+const adminRoutes = require('./routes/admin');
 
 app.set('trust proxy', 1); // needed behind Render/Vercel proxies for correct client IPs
 app.use(helmet());
@@ -49,6 +50,7 @@ app.get('/', (_req, res) => res.json({ name: 'RevBid API', status: 'running' }))
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/bikes', bikeRoutes);
 app.use('/api/auctions', auctionRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
