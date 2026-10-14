@@ -12,14 +12,19 @@ const bikeRoutes = require('./routes/bikes');
 const auctionRoutes = require('./routes/auctions');
 const app = express();
 const adminRoutes = require('./routes/admin');
+const { requestId } = require('./requestId');
+const { metricsMiddleware, metricsHandler } = require('./metrics');
 
 app.set('trust proxy', 1); // needed behind Render/Vercel proxies for correct client IPs
 app.use(helmet());
 app.use(cors({ origin: config.clientOrigin, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
+app.use(requestId);
+app.use(metricsMiddleware);
 app.use(
   pinoHttp({
     logger,
+    genReqId: (req) => req.id,
     autoLogging: { ignore: (req) => req.url === '/health' },
     serializers: {
       req: (req) => ({ id: req.id, method: req.method, url: req.url }),
@@ -38,6 +43,7 @@ app.get('/health', async (_req, res) => {
     res.status(503).json({ status: 'degraded', db: 'down' });
   }
 });
+app.get('/metrics', metricsHandler);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

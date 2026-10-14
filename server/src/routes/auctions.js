@@ -6,6 +6,8 @@ const { AppError } = require('../errors');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { placeBid } = require('../services/bidService');
 const { parse, parseId } = require('../validate');
+const { publish, isRealtimeOn } = require('../realtime');
+const { bidsTotal } = require('../metrics');
 
 const router = express.Router();
 
@@ -89,6 +91,40 @@ const BASE_SELECT = `
          (SELECT COUNT(*) FROM bids WHERE auction_id = a.id) AS bid_count
   FROM auctions a JOIN bikes b ON b.id = a.bike_id`;
 
+async function broadcastBid(result, userId) {
+  const [[row]] = await pool.query(
+    `SELECT b.created_at, UTC_TIMESTAMP() AS now,
+            (SELECT COUNT(*) FROM bids WHERE auction_id = ?) AS n,
+            (SELECT name FROM users WHERE id = ?) AS name
+     FROM bids b WHERE b.id = ?`,
+    [result.auctionId, userId, result.bidId]
+  );
+  if (!row) return;
+  const base = {
+    auctionId: result.auctionId,
+    currentPrice: result.currentPrice,
+    minNextBid: result.minNextBid,
+    highestBidderId: result.highestBidderId,
+    bidCount: Number(row.n),
+    endsAt: result.endsAt,
+    status: result.status,
+    serverTime: row.now,
+  };
+  publish(`auction:${result.auctionId}`, 'bid:placed', {
+    ...base,
+    extended: !!result.extended,
+    previousHighestBidderId: result.previousHighestBidderId ?? null,
+    bid: {
+      id: result.bidId,
+      userId,
+      bidder: maskName(row.name),
+      amount: result.currentPrice,
+      createdAt: row.created_at,
+    },
+  });
+  publish('lobby', 'auction:updated', base);
+}
+
 // List auctions (public)
 router.get('/', async (req, res) => {
   const q = parse(listQuery, req.query);
@@ -135,8 +171,18 @@ router.get('/:id', async (req, res) => {
 router.post('/:id/bids', requireAuth, bidLimiter, async (req, res) => {
   const auctionId = parseId(req.params.id);
   const { amount, requestId } = parse(bidSchema, req.body);
-  const result = await placeBid({ auctionId, userId: req.user.id, amount, requestId });
+    let result;
+  try {
+    result = await placeBid({ auctionId, userId: req.user.id, amount, requestId });
+  } catch (err) {
+    bidsTotal.inc({ outcome: err.code || 'error' });
+    throw err;
+  }
+  bidsTotal.inc({ outcome: result.duplicate ? 'duplicate' : 'accepted' });
   req.log.info({ auctionId, userId: req.user.id, amount, duplicate: result.duplicate }, 'bid processed');
+    if (!result.duplicate && isRealtimeOn()) {
+    broadcastBid(result, req.user.id).catch((err) => req.log.error({ err }, 'realtime publish failed'));
+  }
   res.status(result.duplicate ? 200 : 201).json(result);
 });
 
@@ -168,6 +214,8 @@ router.patch('/:id/cancel', requireAuth, requireRole('admin'), async (req, res) 
   if (!result.affectedRows) {
     throw new AppError(409, 'CANNOT_CANCEL', 'Only scheduled or live auctions can be cancelled.');
   }
+    publish(`auction:${id}`, 'auction:status', { auctionId: id, status: 'cancelled' });
+  publish('lobby', 'auction:status', { auctionId: id, status: 'cancelled' });
   res.json({ id, status: 'cancelled' });
 });
 
