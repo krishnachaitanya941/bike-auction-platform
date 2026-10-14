@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError, type AuctionDetail } from "../api";
 import { useAuth } from "../auth";
 import { formatDateTime, formatDuration, inr, timeAgo } from "../format";
+import { useRealtime, type BidEvent, type StatusEvent } from "../socket";
 import { useServerClock } from "../useClock";
 import { Button, Countdown, Field, Icon, StatusChip, TopNav, cx } from "../ui";
 
@@ -47,7 +48,10 @@ export default function AuctionDetailPage() {
       try {
         const d = await api.getAuction(auctionId);
         if (mine !== requestCounter.current) return;
-        setData(d);
+        // Ignore a slow, stale response that would undo a newer bid.
+        setData((prev) =>
+          prev && prev.auction.id === d.auction.id && d.auction.bidCount < prev.auction.bidCount ? prev : d
+        );
         setLoadError(null);
       } catch (e) {
         if (mine !== requestCounter.current) return;
@@ -61,16 +65,54 @@ export default function AuctionDetailPage() {
     [auctionId]
   );
 
+  const connected = useRealtime(
+    missing ? null : { event: "auction:join", auctionId },
+    {
+      "bid:placed": (e: BidEvent) => {
+        if (e.auctionId !== auctionId) return;
+        setData((prev) => {
+          if (!prev) return prev;
+          const known = prev.bids.some((b) => b.id === e.bid.id);
+          const bids = known
+            ? prev.bids
+            : [e.bid, ...prev.bids].sort((x, y) => y.amount - x.amount).slice(0, 20);
+          return {
+            serverTime: e.serverTime,
+            bids,
+            auction: {
+              ...prev.auction,
+              status: e.status,
+              currentPrice: e.currentPrice,
+              minNextBid: e.minNextBid,
+              highestBidderId: e.highestBidderId,
+              bidCount: e.bidCount,
+              endsAt: e.endsAt,
+            },
+          };
+        });
+      },
+      "auction:status": (e: StatusEvent) => {
+        if (e.auctionId === auctionId) load(true);
+      },
+    },
+    () => load(true)
+  );
+
   useEffect(() => {
     if (missing) return;
     setLoading(true);
     load();
-    const t = setInterval(() => load(true), 3000);
     return () => {
-      clearInterval(t);
       requestCounter.current += 1;
     };
   }, [load, missing]);
+
+  // Live updates arrive over the socket; polling is only a safety net.
+  useEffect(() => {
+    if (missing) return;
+    const t = setInterval(() => load(true), connected ? 30000 : 3000);
+    return () => clearInterval(t);
+  }, [load, missing, connected]);
 
   const a = data?.auction;
   const bids = data?.bids ?? [];
@@ -193,7 +235,10 @@ export default function AuctionDetailPage() {
     <div className="bid-card">
       <BidBanner banner={banner} />
       <div className="bid-card-top">
-        <div><span className="eyebrow">{priceLabel}</span><div className="bid-price">{priceValue}</div></div>
+        <div>
+          <span className="eyebrow">{priceLabel}</span>
+          <div className="bid-price price-flash" key={priceValue}>{priceValue}</div>
+        </div>
         <StatusChip status={over && a.status === "live" ? "ended" : a.status} />
       </div>
 
@@ -287,8 +332,11 @@ export default function AuctionDetailPage() {
 
             <section className="history-card">
               <div className="history-header">
-                <div><div className="section-title">Live bid history</div><span>{a.bidCount} {a.bidCount === 1 ? "bid" : "bids"} so far</span></div>
-                {canBid && <div className="live-indicator compact"><i /> Live</div>}
+                <div>
+                  <div className="section-title">Live bid history</div>
+                  <span>{a.bidCount} {a.bidCount === 1 ? "bid" : "bids"} so far</span>
+                </div>
+                {canBid && <div className="live-indicator compact"><i /> {connected ? "Live" : "Reconnecting…"}</div>}
               </div>
               <div className="bid-list">
                 {bids.length === 0 && <div style={{ padding: "16px 0", color: "var(--muted)" }}>No bids yet. Be the first to bid.</div>}
