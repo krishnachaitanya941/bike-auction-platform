@@ -42,6 +42,21 @@ export interface AuctionList {
   auctions: Auction[];
 }
 
+export interface BidRow { id: number; userId: number; bidder: string; amount: number; createdAt: string }
+export interface AuctionDetail { serverTime: string; auction: Auction; bids: BidRow[] }
+export interface BidResult {
+  auctionId: number;
+  currentPrice: number;
+  minNextBid: number;
+  highestBidderId: number | null;
+  endsAt: string;
+  status: AuctionStatus;
+  duplicate: boolean;
+  bidId: number;
+  extended?: boolean;
+  previousHighestBidderId?: number | null;
+}
+
 async function request<T>(
   path: string,
   { method = "GET", body }: { method?: string; body?: unknown } = {}
@@ -82,4 +97,7 @@ export const api = {
   me: () => request<{ user: User }>("/api/auth/me"),
   listAuctions: (status: string, sort: string) =>
     request<AuctionList>(`/api/auctions?status=${status}&sort=${sort}`),
+    getAuction: (id: number) => request<AuctionDetail>(`/api/auctions/${id}`),
+  placeBid: (id: number, amount: number, requestId: string) =>
+    request<BidResult>(`/api/auctions/${id}/bids`, { method: "POST", body: { amount, requestId } }),
 };
